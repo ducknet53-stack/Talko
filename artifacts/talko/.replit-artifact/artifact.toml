@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Talko"
+version = "1.0.0"
+id = "artifacts/talko"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24470
+
+[services.development]
+run = "pnpm --filter @workspace/talko run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/talko", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/talko/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24470"
+BASE_PATH = "/"
