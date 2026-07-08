@@ -18,3 +18,13 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+FIREBASE_API_KEY = "AIzaSyAqK4txnssnSHBUOPe7YTyz98DPmmHIIfM"
+FIREBASE_APP_ID = "1:679024959209:web:7afe9f7ea337cfa2281a78"
+FIREBASE_AUTH_DOMAIN = "talko-b5468.firebaseapp.com"
+FIREBASE_MESSAGING_SENDER_ID = "679024959209"
+FIREBASE_PROJECT_ID = "talko-b5468"
+FIREBASE_STORAGE_BUCKET = "talko-b5468.firebasestorage.app"
