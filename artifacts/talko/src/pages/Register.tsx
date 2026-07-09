@@ -1,22 +1,70 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { auth, db } from "@/lib/firebase";
+import { createWelcomeConversation } from "@/lib/chat";
+
+function mapAuthError(code: string) {
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "Bu e-posta adresi zaten kullanımda.";
+    case "auth/invalid-email":
+      return "Geçerli bir e-posta adresi gir.";
+    case "auth/weak-password":
+      return "Şifre en az 6 karakter olmalı.";
+    default:
+      return "Hesap oluşturulamadı. Lütfen tekrar dene.";
+  }
+}
+
+const USERNAME_PATTERN = /^[a-z0-9_.]{3,20}$/;
 
 export default function Register() {
   const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    const normalizedUsername = username.trim();
+    if (!USERNAME_PATTERN.test(normalizedUsername.toLowerCase())) {
+      setError("Kullanıcı adı 3-20 karakter olmalı ve yalnızca küçük harf, rakam, nokta veya alt çizgi içermeli.");
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(credential.user, { displayName: normalizedUsername });
+      await setDoc(doc(db, "users", credential.user.uid), {
+        username: normalizedUsername,
+        usernameLower: normalizedUsername.toLowerCase(),
+        bio: "",
+        avatarUrl: "",
+        isVerified: false,
+        isOnline: true,
+        createdAt: serverTimestamp(),
+        lastSeenAt: serverTimestamp(),
+      });
+      const idToken = await credential.user.getIdToken();
+      await createWelcomeConversation(idToken);
       setLocation("/");
-    }, 1500);
+    } catch (err: any) {
+      setError(mapAuthError(err?.code));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -26,14 +74,14 @@ export default function Register() {
         <div className="absolute top-6 left-6 md:hidden">
           <img src={logo} alt="Talko" className="w-10 h-10" />
         </div>
-        
+
         <div className="w-full max-w-md space-y-8 animate-in slide-in-from-bottom-4 duration-500">
           <div className="space-y-2 text-center md:text-left">
             <h2 className="text-3xl font-bold tracking-tight">Kayıt Ol</h2>
             <p className="text-muted-foreground">Saniyeler içinde hesabını oluştur.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5" data-testid="form-register">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="username">Kullanıcı Adı</Label>
@@ -41,12 +89,15 @@ export default function Register() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <UserIcon className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <Input 
-                    id="username" 
-                    type="text" 
-                    placeholder="kullanici_adin" 
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="kullanici_adin"
                     className="pl-10"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
+                    data-testid="input-username"
                   />
                 </div>
               </div>
@@ -57,12 +108,16 @@ export default function Register() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Mail className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="ornek@posta.com" 
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="ornek@posta.com"
                     className="pl-10"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
+                    data-testid="input-email"
                   />
                 </div>
               </div>
@@ -73,18 +128,29 @@ export default function Register() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Lock className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="En az 8 karakter" 
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="En az 6 karakter"
                     className="pl-10"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
+                    minLength={6}
+                    data-testid="input-password"
                   />
                 </div>
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            {error && (
+              <p className="text-sm text-destructive" data-testid="text-error">
+                {error}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading} data-testid="button-submit">
               {isLoading ? "Hesap oluşturuluyor..." : "Kayıt Ol"}
               {!isLoading && <ArrowRight className="ml-2 w-5 h-5" />}
             </Button>

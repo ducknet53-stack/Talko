@@ -1,0 +1,1 @@
+- [Firebase in this monorepo](firebase-integration.md) — no Replit connector for Firebase; client config goes via Vite `define`, admin ops via `firebase-admin` externalized in esbuild.

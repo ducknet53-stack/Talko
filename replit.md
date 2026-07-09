@@ -1,44 +1,60 @@
-# [Project name]
+# Talko
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Talko is a modern, Turkish-language real-time messaging app with 1:1 chats, typing indicators, presence, image sharing, and an official "Talko ✦" broadcast account.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/talko run dev` — run the web frontend
+- `pnpm --filter @workspace/api-server run dev` — run the API server (image upload proxy)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server exec tsx scripts/createOfficialAccount.ts` — create/repair the official "Talko ✦" Firebase Auth account + profile (safe to re-run)
+- `pnpm --filter @workspace/api-server exec tsx scripts/deployFirestoreRules.ts` — publish `artifacts/talko/firestore.rules` to the live Firebase project
+- Required env (public, safe client-side): `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_APP_ID`
+- Required secrets (server-side only): `FIREBASE_SERVICE_ACCOUNT_KEY` (full service-account JSON), `IMGBB_API_KEY`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Frontend: React + Vite (`artifacts/talko`), Firebase client SDK (Auth + Firestore) — this app's real data lives in Firestore, not the workspace Postgres/Drizzle stack, so it bypasses the OpenAPI/Orval codegen pipeline entirely
+- Backend: Express 5 (`artifacts/api-server`) — only handles the ImgBB image-upload proxy (keeps the ImgBB key server-side) and one-off admin scripts using `firebase-admin`
+- Auth/DB: Firebase Auth (email/password) + Firestore, security rules in `artifacts/talko/firestore.rules`
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/talko/src/lib/firebase.ts` — client SDK init, exports `auth`, `db`, `TALKO_OFFICIAL_UID`
+- `artifacts/talko/src/lib/auth-context.tsx` — `AuthProvider`/`useAuth`, presence tracking, profile streaming
+- `artifacts/talko/src/lib/chat.ts` — all Firestore data-layer helpers (conversations, messages, typing, presence, user search)
+- `artifacts/talko/src/lib/upload.ts` — client-side image upload call to the api-server proxy
+- `artifacts/talko/firestore.rules` — source of truth for security rules; deploy via the script above after edits
+- `artifacts/api-server/src/lib/firebaseAdmin.ts` — Admin SDK init from `FIREBASE_SERVICE_ACCOUNT_KEY`
+- `artifacts/api-server/src/routes/uploadImage.ts` — `POST /api/upload-image`, forwards to ImgBB
+- `artifacts/api-server/scripts/` — one-off admin scripts (official account creation, rules deploy), run via `tsx`, not permanent routes
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Conversation IDs are deterministic (`sorted-uid-pair` joined with `__`), so a 1:1 chat has exactly one canonical doc regardless of who starts it.
+- The official "Talko ✦" account has a fixed uid (`talko-official`) baked into the client so it can be recognized without a lookup, and its avatar is rendered from the bundled logo asset (not a stored URL) to avoid depending on a stable external image URL.
+- Firestore security rules block any client from writing a message with `senderId` set to the official uid — only the admin SDK (server-side script) can post as Talko, bypassing rules.
+- Presence is approximated via Firestore doc writes on visibility/mount/unload events; there is no reliable server-side disconnect hook, so a user can appear "online" briefly after closing the tab ungracefully.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Email/password auth (register, login, password reset) in Turkish
+- 1:1 chat list with unread counts, online status, last-message preview
+- Chat view: real-time messages, typing indicator, image upload, emoji picker
+- New chat via username search
+- Every new user gets an auto-seeded welcome conversation with the official Talko account (read-only — users cannot reply to it)
+- Profile page: edit username/bio, change avatar, light/dark/system theme toggle, logout
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Do not push to GitHub or prepare deployment until the app is fully working and tested end-to-end.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Vite requires an explicit `define` block (see `vite.config.ts`) to map selected server env vars to `import.meta.env.VITE_FIREBASE_*` — never blanket-expose all env vars to the client, since `FIREBASE_SERVICE_ACCOUNT_KEY` must stay server-only.
+- After editing `firestore.rules`, you must re-run the deploy script — there is no file-watcher/auto-sync to the live Firebase project.
 
 ## Pointers
 

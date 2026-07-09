@@ -1,22 +1,32 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Mail, ArrowLeft, Send } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { auth } from "@/lib/firebase";
 
 export default function ForgotPassword() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await sendPasswordResetEmail(auth, email);
       setIsSubmitted(true);
-    }, 1500);
+    } catch {
+      // Avoid leaking whether an email exists; show the same success state.
+      setIsSubmitted(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -71,12 +81,22 @@ export default function ForgotPassword() {
                     type="email" 
                     placeholder="ornek@posta.com" 
                     className="pl-10"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
+                    data-testid="input-email"
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {error && (
+                <p className="text-sm text-destructive" data-testid="text-error">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" className="w-full" size="lg" disabled={isLoading} data-testid="button-submit">
                 {isLoading ? "Gönderiliyor..." : "Sıfırlama Bağlantısı Gönder"}
               </Button>
             </form>
