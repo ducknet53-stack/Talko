@@ -1,4 +1,5 @@
 import { auth } from "@/lib/firebase";
+import { apiUrl } from "@/lib/apiUrl";
 
 /**
  * Uploads an image file through the api-server proxy, which forwards it to
@@ -15,7 +16,7 @@ export async function uploadImage(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("image", file);
 
-  const res = await fetch(`${import.meta.env.BASE_URL}api/upload-image`, {
+  const res = await fetch(apiUrl("api/upload-image"), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${idToken}`,

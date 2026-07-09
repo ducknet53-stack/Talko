@@ -19,6 +19,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db, TALKO_OFFICIAL_UID } from "@/lib/firebase";
+import { apiUrl } from "@/lib/apiUrl";
 
 export type UserProfile = {
   id: string;
@@ -79,7 +80,7 @@ export async function ensureConversation(uidA: string, uidB: string) {
  * run server-side with elevated privileges.
  */
 export async function createWelcomeConversation(idToken: string) {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/welcome-conversation`, {
+  const res = await fetch(apiUrl("api/welcome-conversation"), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${idToken}`,

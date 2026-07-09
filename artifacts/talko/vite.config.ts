@@ -5,29 +5,23 @@ import { defineConfig } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
-
+// PORT and BASE_PATH are required for the dev server but not for static
+// builds (e.g. Render). Fall back to safe defaults so `vite build` doesn't
+// throw in environments that don't inject these vars.
+const rawPort = process.env.PORT ?? '3000';
 const port = Number(rawPort);
-
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+const basePath = process.env.BASE_PATH ?? '/';
 
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
-
+// VITE_API_URL: set to the API server origin on Render so the frontend can
+// reach it across origins. Leave unset on Replit/local (uses relative paths).
 const firebasePublicEnv: Record<string, string> = {
+  'import.meta.env.VITE_API_URL': JSON.stringify(
+    process.env.VITE_API_URL ?? '',
+  ),
   'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify(
     process.env.FIREBASE_API_KEY ?? '',
   ),
