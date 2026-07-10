@@ -18,8 +18,8 @@ services:
     name: talko-api
     runtime: node
     plan: free
-    buildCommand: "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build"
-    startCommand: "pnpm --filter @workspace/api-server run start"
+    buildCommand: "npx --yes pnpm@9 install --frozen-lockfile && npx --yes pnpm@9 --filter @workspace/api-server run build"
+    startCommand: "npx --yes pnpm@9 --filter @workspace/api-server run start"
     envVars:
       - key: NODE_ENV
         value: production
@@ -36,7 +36,7 @@ services:
     name: talko-app
     runtime: static
     plan: free
-    buildCommand: "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/talko run build"
+    buildCommand: "npx --yes pnpm@9 install --frozen-lockfile && npx --yes pnpm@9 --filter @workspace/talko run build"
     staticPublishPath: ./artifacts/talko/dist/public
     # SPA fallback — all routes serve index.html so client-side routing works
     routes:
